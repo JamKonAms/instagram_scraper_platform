@@ -24,6 +24,9 @@
 instagram-scraper/
 ├── backend/
 │ ├── src/
+│ │ ├── scrapers/
+│ │ │ ├── profileScraper.js  # Handles API calls to instagram-scraper-api2
+│ │ │ └── postScraper.js     # Uses same API endpoint
 │ │ ├── api/
 │ │ │ └── rapidApiClient.js # Encapsulates all calls to RapidAPI
 │ │ ├── scrapers/
@@ -31,8 +34,8 @@ instagram-scraper/
 │ │ │ ├── postScraper.js # For posts
 │ │ │ └── storyScraper.js # For stories
 │ │ ├── storage/
-│ │ │ ├── bigQueryClient.js # Handles BQ connections
-│ │ │ └── dataHandler.js # Data transformations before insertion
+│ │ │ ├── bigQueryClient.js # Handles BQ connections & schemas
+│ │ │ └── dataHandler.js    # Data transformations before insertion
 │ │ ├── jobs/
 │ │ │ └── scheduler.js # Schedules scraping jobs
 │ │ ├── utils/
@@ -91,6 +94,14 @@ instagram-scraper/
   - Table operations (create, insert, verify)
   - Data validation
   - Error handling
+
+### Schema Management
+All table schemas are defined in `bigQueryClient.js` as a single source of truth.
+This ensures:
+- No duplicate schema definitions
+- Consistent validation across the application
+- Centralized schema updates
+- Easy schema verification against BigQuery tables
 
 ### File Structure
 instagram-scraper/
@@ -238,15 +249,25 @@ Objective: We want to ensure our scrapers correctly call the new endpoints and s
 
 ## API Integration
 
-### RapidAPI Endpoints
-- Profile Info: `GET /v1/info`
-  - Query params: `username_or_id_or_url`
-  - Returns: Detailed profile information including follower count, media count, etc.
-  - Response structure: Nested under `data` object
+### External APIs
+We use RapidAPI's Instagram Scraper v2 for all Instagram data:
+- Base URL: `instagram-scraper-api2.p.rapidapi.com`
+- Endpoints:
+  - Profile: `GET /v1/info`
+  - Followers: `GET /v1/followers`
+  - Following: `GET /v1/following`
+  - Posts: `GET /v1.2/posts`
 
-### Data Flow
-1. Client sends POST request to `/api/scrape/profile` with username
-2. Backend makes GET request to RapidAPI
-3. Response is transformed and stored in BigQuery
-4. Client receives processed profile data
+### Implementation
+- `profileScraper.js`: Handles all API calls directly
+- No separate API client layer needed
+- Consistent error handling and logging
+
+### File Structure Update
+instagram-scraper/
+├── backend/
+│ ├── src/
+│ │ ├── scrapers/           # All API interaction happens here
+│ │ │ ├── profileScraper.js # Handles profile, follower, following
+│ │ │ └── postScraper.js    # Handles posts and media
 

@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const logger = require('./utils/logger');
 const scrapeOrchestrator = require('./jobs/scrapeOrchestrator');
+const bigQueryClient = require('./storage/bigQueryClient');
 
 // Initialize Express app
 const app = express();
@@ -73,4 +74,12 @@ app.listen(config.port, () => {
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception:', err);
   process.exit(1);
+});
+
+// Early validation of required env vars
+const requiredEnvVars = ['RAPIDAPI_KEY', 'GOOGLE_APPLICATION_CREDENTIALS'];
+requiredEnvVars.forEach(varName => {
+  if (!process.env[varName]) {
+    throw new Error(`Missing required environment variable: ${varName}`);
+  }
 }); 

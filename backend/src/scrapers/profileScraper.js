@@ -5,7 +5,7 @@ const config = require('../config');
 class ProfileScraper {
   constructor() {
     this.client = axios.create({
-      baseURL: config.rapidApi.baseUrl,
+      baseURL: 'https://instagram-scraper-api2.p.rapidapi.com',
       headers: {
         'X-RapidAPI-Key': config.rapidApi.key,
         'X-RapidAPI-Host': config.rapidApi.host
@@ -17,8 +17,8 @@ class ProfileScraper {
     try {
       logger.info(`Starting profile scrape for username: ${username}`);
       
-      // Log the request configuration
-      logger.debug('Request config:', {
+      // Log request details
+      logger.debug('Request details:', {
         url: `${this.client.defaults.baseURL}${config.rapidApi.endpoints.profile}`,
         headers: this.client.defaults.headers,
         params: { username_or_id_or_url: username }
@@ -30,25 +30,25 @@ class ProfileScraper {
         }
       });
 
-      // Log the raw response for debugging
-      logger.debug('Raw API response:', JSON.stringify(response.data, null, 2));
+      // Log complete response
+      logger.debug('Complete API Response:', {
+        status: response.status,
+        headers: response.headers,
+        data: JSON.stringify(response.data, null, 2)
+      });
 
-      // Pass the nested data object to the transformer
-      const profileData = {
-        username,
-        scrapedAt: new Date().toISOString(),
-        ...response.data.data  // The actual profile data is nested under 'data'
-      };
+      if (!response.data) {
+        throw new Error('No data received from API');
+      }
 
-      logger.info(`Successfully scraped profile for ${username}`);
-      return profileData;
+      return response.data;
       
     } catch (error) {
       logger.error('Error scraping profile:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        headers: error.response?.headers
+        config: error.config
       });
       throw error;
     }
@@ -99,4 +99,21 @@ class ProfileScraper {
   }
 }
 
-module.exports = new ProfileScraper(); 
+// Add test function
+async function testScrape() {
+  const scraper = new ProfileScraper();
+  try {
+    const data = await scraper.scrapeProfile('wietskeoverdijk');
+    console.log('API Response:', JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error('Scrape Error:', error);
+    throw error;
+  }
+}
+
+// Export for testing
+module.exports = {
+  default: new ProfileScraper(),
+  testScrape
+}; 

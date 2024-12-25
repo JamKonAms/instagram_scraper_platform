@@ -4,13 +4,55 @@ const config = require('../config');
 
 class BigQueryClient {
   constructor() {
+    // Single source of truth for all table schemas
     this.schemas = {
       profiles: [
         { name: 'username', type: 'STRING', mode: 'REQUIRED' },
-        // ... rest of schema
+        { name: 'scrapedAt', type: 'TIMESTAMP', mode: 'REQUIRED' },
+        { name: 'userId', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'fullName', type: 'STRING' },
+        { name: 'biography', type: 'STRING' },
+        { name: 'externalUrl', type: 'STRING' },
+        { name: 'followerCount', type: 'INTEGER' },
+        { name: 'followingCount', type: 'INTEGER' },
+        { name: 'isPrivate', type: 'BOOLEAN' },
+        { name: 'isVerified', type: 'BOOLEAN' },
+        { name: 'profilePicUrl', type: 'STRING' },
+        { name: 'mediaCount', type: 'INTEGER' },
+        { name: 'totalIgtvVideos', type: 'INTEGER' },
+        { name: 'isBusinessAccount', type: 'BOOLEAN' },
+        { name: 'category', type: 'STRING' },
+        { name: 'publicEmail', type: 'STRING' },
+        { name: 'bioLinks', type: 'STRING' },
+        { name: 'biographyWithEntities', type: 'STRING' },
+        { name: 'profilePicUrlHd', type: 'STRING' }
+      ],
+      posts: [
+        { name: 'username', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'postId', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'scrapedAt', type: 'TIMESTAMP', mode: 'REQUIRED' },
+        { name: 'shortcode', type: 'STRING' },
+        { name: 'caption', type: 'STRING' },
+        { name: 'likeCount', type: 'INTEGER' },
+        { name: 'commentCount', type: 'INTEGER' },
+        { name: 'mediaType', type: 'STRING' },
+        { name: 'mediaUrl', type: 'STRING' },
+        { name: 'thumbnailUrl', type: 'STRING' },
+        { name: 'timestamp', type: 'TIMESTAMP' },
+        { name: 'locationName', type: 'STRING' },
+        { name: 'locationId', type: 'STRING' },
+        { name: 'hashtags', type: 'STRING' },
+        { name: 'mentions', type: 'STRING' },
+        { name: 'isVideo', type: 'BOOLEAN' },
+        { name: 'videoDuration', type: 'FLOAT' },
+        { name: 'viewCount', type: 'INTEGER' },
+        { name: 'productType', type: 'STRING' }
+      ],
+      followers: [
+        // ... follower schema fields
       ]
     };
-    
+
     this.bigquery = new BigQuery({
       projectId: config.googleCloud.projectId,
       keyFilename: config.googleCloud.credentials,
@@ -19,53 +61,109 @@ class BigQueryClient {
     this.dataset = config.googleCloud.bigquery.dataset;
   }
 
+  // Method to get schema for validation
+  getSchema(tableName) {
+    return this.schemas[tableName];
+  }
+
+  validateDataAgainstSchema(tableName, data) {
+    const schema = this.schemas[tableName];
+    const errors = [];
+
+    // Check required fields
+    schema.forEach(field => {
+      if (field.mode === 'REQUIRED' && !data[field.name]) {
+        errors.push(`Missing required field: ${field.name}`);
+      }
+    });
+
+    // Check data types
+    Object.entries(data).forEach(([key, value]) => {
+      const fieldSchema = schema.find(f => f.name === key);
+      if (!fieldSchema) {
+        errors.push(`Unknown field: ${key}`);
+        return;
+      }
+
+      // Type validation
+      switch (fieldSchema.type) {
+        case 'STRING':
+          if (value && typeof value !== 'string') {
+            errors.push(`Field ${key} must be a string`);
+          }
+          break;
+        case 'INTEGER':
+          if (value && !Number.isInteger(Number(value))) {
+            errors.push(`Field ${key} must be an integer`);
+          }
+          break;
+        case 'BOOLEAN':
+          if (value !== null && typeof value !== 'boolean') {
+            errors.push(`Field ${key} must be a boolean`);
+          }
+          break;
+        case 'TIMESTAMP':
+          if (value && isNaN(Date.parse(value))) {
+            errors.push(`Field ${key} must be a valid timestamp`);
+          }
+          break;
+      }
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
   async insertData(tableName, rows) {
     try {
-      logger.info(`Inserting ${rows.length} rows into ${tableName}`);
+      logger.info(`Validating ${rows.length} rows for ${tableName}`);
       
-      // Log the exact data being inserted
-      logger.debug('Data to insert:', {
-        tableName,
-        schema: this.schemas[tableName],
-        rows: JSON.stringify(rows, null, 2)
-      });
-      
+      // Clean the data before insertion
+      const cleanedRows = rows.map(row => ({
+        ...row,
+        // Ensure proper data types
+        username: String(row.username),
+        scrapedAt: new Date(row.scrapedAt).toISOString(),
+        userId: String(row.userId),
+        followerCount: Number(row.followerCount),
+        followingCount: Number(row.followingCount),
+        mediaCount: Number(row.mediaCount),
+        totalIgtvVideos: Number(row.totalIgtvVideos),
+        isPrivate: Boolean(row.isPrivate),
+        isVerified: Boolean(row.isVerified),
+        isBusinessAccount: Boolean(row.isBusinessAccount),
+        // Truncate long strings if needed
+        bioLinks: row.bioLinks ? row.bioLinks.substring(0, 1000) : null,
+        biographyWithEntities: row.biographyWithEntities ? row.biographyWithEntities.substring(0, 1000) : null
+      }));
+
       const dataset = this.bigquery.dataset(this.dataset);
       const table = dataset.table(tableName);
 
-      const [apiResponse] = await table.insert(rows, {
+      const options = {
         schema: this.schemas[tableName],
         createInsertId: true,
-        ignoreUnknownValues: false, // Fail on unknown fields
-        raw: true // Get detailed error responses
-      });
-      
-      logger.info(`Successfully inserted data into ${tableName}`);
-      return apiResponse;
-      
-    } catch (error) {
-      // Detailed error logging
-      if (error.name === 'PartialFailureError') {
-        const insertErrors = error.response?.insertErrors || [];
-        logger.error('BigQuery Partial Failure:', {
-          error: error.message,
-          rowErrors: insertErrors.map(err => ({
-            row: err.row,
-            errors: err.errors.map(e => ({
-              reason: e.reason,
-              location: e.location,
-              message: e.message
-            }))
-          }))
-        });
-      } else {
-        logger.error(`Error inserting data into ${tableName}:`, {
-          errorType: error.name,
-          message: error.message,
-          stack: error.stack,
-          details: error.response
-        });
+        ignoreUnknownValues: true, // Ignore extra fields
+        raw: true,
+        // Add explicit type conversion
+        templateSuffix: '_template'
+      };
+
+      logger.info(`Inserting ${rows.length} rows into ${tableName}`);
+      const [response] = await table.insert(cleanedRows, options);
+
+      if (response && response.insertErrors) {
+        logger.error('Insert errors:', JSON.stringify(response.insertErrors, null, 2));
+        throw new Error('Insert failed with errors');
       }
+
+      logger.info(`Successfully inserted ${rows.length} rows into ${tableName}`);
+      return response;
+
+    } catch (error) {
+      logger.error(`Error inserting data into ${tableName}:`, error);
       throw error;
     }
   }
@@ -163,4 +261,24 @@ class BigQueryClient {
   }
 }
 
-module.exports = new BigQueryClient(); 
+// Add test function
+async function testConnection() {
+  const client = new BigQueryClient();
+  try {
+    // Test table exists
+    console.log('Testing table schema...');
+    const isValid = await client.verifyTableSchema('profiles');
+    console.log('Schema valid:', isValid);
+
+    // Show current schema
+    console.log('Current schema:', client.schemas.profiles);
+  } catch (error) {
+    console.error('BigQuery Error:', error);
+  }
+}
+
+// Export for testing
+module.exports = {
+  default: new BigQueryClient(),
+  testConnection
+}; 

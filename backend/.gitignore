@@ -1,0 +1,19 @@
+# Environment variables
+.env
+
+# Google Cloud credentials
+google_service_account.json
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store 

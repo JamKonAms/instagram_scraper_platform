@@ -85,6 +85,21 @@ instagram-scraper/
 
 ## Database Configuration
 
+### Storage Components
+- `bigQueryClient.js`: Handles all BigQuery operations including:
+  - Schema definitions (single source of truth)
+  - Table operations (create, insert, verify)
+  - Data validation
+  - Error handling
+
+### File Structure
+instagram-scraper/
+├── backend/
+│ ├── src/
+│ │ ├── storage/
+│ │ │ ├── bigQueryClient.js  # All BigQuery operations
+│ │ │ └── dataHandler.js     # Data transformations
+
 ### BigQuery Setup
 - **Project ID**: `godspeed-416117`
 - **Dataset**: `instagram_data`

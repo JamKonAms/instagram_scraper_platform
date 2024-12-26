@@ -1,19 +1,10 @@
 # Environment variables
 .env
+!.env.example
 
-# Google Cloud credentials
-google_service_account.json
+# Credentials
+credentials/
+*.json
 
-# Dependencies
-node_modules/
-
-# Logs
-*.log
-logs/
-
-# IDE files
-.vscode/
-.idea/
-
-# OS files
-.DS_Store 
+# Node
+node_modules/ 

@@ -1,21 +1,15 @@
-const bigQueryClient = require('../src/storage/bigQueryClient').default;
+const bigQueryClient = require('../src/storage/bigQueryClient');
 const logger = require('../src/utils/logger');
 
-async function recreateAllTables() {
+async function recreateTables() {
   try {
-    logger.info('Starting table recreation...');
-    
-    // Recreate profiles table
     await bigQueryClient.recreateTable('profiles');
-    
-    // Add other tables as needed
-    // await bigQueryClient.recreateTable('posts');
-    
-    logger.info('All tables recreated successfully');
+    logger.info('Successfully recreated tables');
+    process.exit(0);
   } catch (error) {
-    logger.error('Error recreating tables:', error);
+    logger.error('Failed to recreate tables:', error);
     process.exit(1);
   }
 }
 
-recreateAllTables(); 
+recreateTables(); 

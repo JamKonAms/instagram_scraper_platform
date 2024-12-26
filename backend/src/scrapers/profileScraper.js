@@ -99,21 +99,5 @@ class ProfileScraper {
   }
 }
 
-// Add test function
-async function testScrape() {
-  const scraper = new ProfileScraper();
-  try {
-    const data = await scraper.scrapeProfile('wietskeoverdijk');
-    console.log('API Response:', JSON.stringify(data, null, 2));
-    return data;
-  } catch (error) {
-    console.error('Scrape Error:', error);
-    throw error;
-  }
-}
-
 // Export for testing
-module.exports = {
-  default: new ProfileScraper(),
-  testScrape
-}; 
+module.exports = new ProfileScraper(); 

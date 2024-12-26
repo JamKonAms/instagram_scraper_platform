@@ -1,26 +1,16 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-class InstagramAPI {
-  constructor() {
+class RapidAPI {
+  constructor(config) {
     this.client = axios.create({
-      baseURL: 'https://instagram-data1.p.rapidapi.com',
+      baseURL: 'https://instagram-scraper-api2.p.rapidapi.com',
       headers: {
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-        'X-RapidAPI-Host': process.env.RAPIDAPI_HOST
+        'X-RapidAPI-Key': config.rapidApi.key,
+        'X-RapidAPI-Host': config.rapidApi.host
       }
     });
   }
-
-  async fetchUserData(username) {
-    try {
-      const response = await this.client.get(`/user/${username}`);
-      return response.data;
-    } catch (error) {
-      logger.error('Error fetching Instagram data:', error);
-      throw error;
-    }
-  }
 }
 
-module.exports = new InstagramAPI(); 
+module.exports = new RapidAPI(); 

@@ -271,3 +271,22 @@ instagram-scraper/
 │ │ │ ├── profileScraper.js # Handles profile, follower, following
 │ │ │ └── postScraper.js    # Handles posts and media
 
+## System Components
+### 1. Data Collection Layer
+- ProfileScraper ✅ (Clean and focused)
+- PostScraper ❌ (Referenced in config but not implemented)
+
+### 2. Data Processing Layer
+- DataHandler ✅ (Clean transformation logic)
+- Validation logic removed but still in docs ❌
+
+### 3. Storage Layer
+- BigQueryClient ✅ (Well-structured)
+- Table schemas should be documented ❌
+
+# Add sections for:
+- Error handling strategy
+- Logging standards
+- Configuration management
+- Testing approach
+

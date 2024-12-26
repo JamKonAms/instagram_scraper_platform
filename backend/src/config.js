@@ -23,7 +23,7 @@ module.exports = {
   // RapidAPI configuration
   rapidApi: {
     key: process.env.RAPIDAPI_KEY,
-    host: process.env.RAPIDAPI_HOST,
+    host: process.env.RAPID_API_HOST,
     endpoints: {
       profile: '/v1/info',
       followers: '/v1/followers',

@@ -9,7 +9,11 @@ const bigQueryClient = require('./storage/bigQueryClient');
 const app = express();
 
 // Middleware
-app.use(cors(config.cors));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Basic health check endpoint
@@ -26,11 +30,31 @@ app.use((err, req, res, next) => {
   });
 });
 
+function startServer(port) {
+  try {
+    app.listen(port, () => {
+      logger.info(`Server running on port ${port} in ${config.nodeEnv} mode`);
+    });
+  } catch (error) {
+    if (error.code === 'EADDRINUSE') {
+      logger.warn(`Port ${port} is busy, trying ${port + 1}...`);
+      startServer(port + 1);
+    } else {
+      logger.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+}
+
 // Initialize tables on startup
-scrapeOrchestrator.initialize().catch(error => {
-  logger.error('Failed to initialize tables:', error);
-  process.exit(1);
-});
+scrapeOrchestrator.initialize()
+  .then(() => {
+    startServer(config.port);
+  })
+  .catch(error => {
+    logger.error('Failed to initialize tables:', error);
+    process.exit(1);
+  });
 
 // Add scraping endpoints
 app.post('/api/scrape/profile', async (req, res, next) => {
@@ -65,11 +89,6 @@ app.post('/api/scrape/posts', async (req, res, next) => {
   }
 });
 
-// Start server
-app.listen(config.port, () => {
-  logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
-});
-
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception:', err);
@@ -82,4 +101,4 @@ requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     throw new Error(`Missing required environment variable: ${varName}`);
   }
-}); 
+});

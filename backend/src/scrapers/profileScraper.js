@@ -1,6 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
-const config = require('../config');
+const config = require('../config/index');
 
 class ProfileScraper {
   constructor() {

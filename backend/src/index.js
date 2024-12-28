@@ -5,6 +5,14 @@ const logger = require('./utils/logger');
 const scrapeOrchestrator = require('./jobs/scrapeOrchestrator');
 const bigQueryClient = require('./storage/bigQueryClient');
 
+// Early validation of required env vars
+const requiredEnvVars = ['RAPIDAPI_KEY', 'GOOGLE_APPLICATION_CREDENTIALS'];
+requiredEnvVars.forEach(varName => {
+  if (!process.env[varName]) {
+    throw new Error(`Missing required environment variable: ${varName}`);
+  }
+});
+
 // Initialize Express app
 const app = express();
 
@@ -21,7 +29,39 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
+// Add scraping endpoints
+app.post('/api/scrape/profile', async (req, res, next) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    logger.info(`Received profile scrape request for username: ${username}`);
+    const data = await scrapeOrchestrator.scrapeAndStoreProfile(username);
+    res.json({ success: true, data });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/scrape/posts', async (req, res, next) => {
+  try {
+    const { username, limit } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const data = await scrapeOrchestrator.scrapeAndStorePosts(username, limit);
+    res.json({ success: true, data });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Error handling middleware (after routes)
 app.use((err, req, res, next) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({
@@ -46,7 +86,7 @@ function startServer(port) {
   }
 }
 
-// Initialize tables on startup
+// Initialize tables and start server
 scrapeOrchestrator.initialize()
   .then(() => {
     startServer(config.port);
@@ -56,49 +96,8 @@ scrapeOrchestrator.initialize()
     process.exit(1);
   });
 
-// Add scraping endpoints
-app.post('/api/scrape/profile', async (req, res, next) => {
-  try {
-    const { username } = req.body;
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
-
-    logger.info(`Received profile scrape request for username: ${username}`);
-    const data = await scrapeOrchestrator.scrapeAndStoreProfile(username);
-    res.json({ success: true, data });
-    
-  } catch (error) {
-    logger.error('Profile scrape request failed:', error);
-    next(error);
-  }
-});
-
-app.post('/api/scrape/posts', async (req, res, next) => {
-  try {
-    const { username, limit } = req.body;
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
-
-    const data = await scrapeOrchestrator.scrapeAndStorePosts(username, limit);
-    res.json({ success: true, data });
-    
-  } catch (error) {
-    next(error);
-  }
-});
-
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception:', err);
   process.exit(1);
-});
-
-// Early validation of required env vars
-const requiredEnvVars = ['RAPIDAPI_KEY', 'GOOGLE_APPLICATION_CREDENTIALS'];
-requiredEnvVars.forEach(varName => {
-  if (!process.env[varName]) {
-    throw new Error(`Missing required environment variable: ${varName}`);
-  }
 });
